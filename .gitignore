@@ -1,0 +1,26 @@
+# Датасет и веса моделей в git не храним (см. README)
+data/
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+
+# Промежуточные результаты и логи
+results/logs/
+results/raw/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# IDE и ОС
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

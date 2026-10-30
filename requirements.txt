@@ -1,0 +1,12 @@
+# PyTorch с поддержкой CUDA ставится отдельной командой — см. раздел «Установка» в README.
+torch>=2.1
+torchvision>=0.16
+
+numpy>=1.24
+scipy>=1.10
+matplotlib>=3.7
+pyyaml>=6.0
+tqdm>=4.65
+
+# Тесты
+pytest>=7.0
