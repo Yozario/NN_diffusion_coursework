@@ -1,0 +1,49 @@
+{
+  "seed": 42,
+  "num_steps": 1000,
+  "schedules": {
+    "linear": {
+      "t_snr_below_1": 260,
+      "t_signal_below_10pct": 674,
+      "alpha_bar_T": 4.0358296246267855e-05,
+      "alpha_bar_at_500": 0.07858724147081375
+    },
+    "cosine": {
+      "t_snr_below_1": 497,
+      "t_signal_below_10pct": 936,
+      "alpha_bar_T": 2.428766965323348e-09,
+      "alpha_bar_at_500": 0.49384358525276184
+    }
+  },
+  "ks": {
+    "alpha": 0.05,
+    "values_per_test": 196608,
+    "repeats": 20,
+    "timesteps": [
+      10,
+      100,
+      300,
+      600,
+      1000
+    ],
+    "per_schedule": {
+      "linear": {
+        "n_tests": 100,
+        "uniformity_ks_pvalue": 0.4269367171230337,
+        "reject_share": 0.05
+      },
+      "cosine": {
+        "n_tests": 100,
+        "uniformity_ks_pvalue": 0.7201225232388774,
+        "reject_share": 0.05
+      }
+    }
+  },
+  "variance_check": {
+    "max_abs_relative_deviation_pct": {
+      "linear": 0.15211538295003546,
+      "cosine": 0.15651523044168947
+    },
+    "two_se_band_pct": 0.14263644542733717
+  }
+}
