@@ -32,4 +32,15 @@ experiment1:
   ks_repeats: 20                                    # число повторов с разными seed
   variance_every: 10                                # шаг записи дисперсии вдоль траектории
 
-# Разделы model / training (роль 2) и classifier / analysis (роль 3) добавляются сюда же.
+# U-Net, предсказывающий шум (роль 2). Размер подобран под видеокарту с 4 ГБ памяти: ~6.5 млн параметров.
+model:
+  image_size: 32
+  in_channels: 3
+  base_channels: 64          # C — каналы на первом уровне
+  channel_mults: [1, 2, 2]   # уровни 32×32, 16×16, 8×8 с каналами C, 2C, 2C
+  num_res_blocks: 2          # остаточных блоков на уровень спуска (на подъёме — на один больше)
+  attn_resolutions: [16]     # самовнимание только на 16×16
+  num_heads: 4
+  dropout: 0.1
+
+# Разделы training (роль 2) и classifier / analysis (роль 3) добавляются сюда же.
