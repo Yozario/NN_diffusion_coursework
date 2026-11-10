@@ -18,6 +18,7 @@ EMA-копия весов; именно она используется для �
     python -m scripts.train_diffusion --total-steps 2000           # короткий отладочный прогон
     python -m scripts.train_diffusion --resume                     # продолжить с checkpoints/last.pt
     python -m scripts.train_diffusion --fresh                      # начать заново, удалив прошлые результаты
+    python -m scripts.train_diffusion --plot-only                  # перерисовать график по сохранённым журналам
 
 Ctrl+C останавливает обучение и сохраняет чекпойнт; продолжить — с флагом --resume.
 """
@@ -32,12 +33,13 @@ from pathlib import Path
 from typing import Any
 
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
 from src.data import load_cifar10_from_config
 from src.diffusion import GaussianDiffusion
-from src.plotting import COLORS, apply_style, save_figure, show_image_grid
+from src.plotting import COLORS, INK_SECONDARY, apply_style, save_figure, show_image_grid
 from src.training import EMA, EpochBatchSampler, amp_dtype_for, load_checkpoint, save_checkpoint, warmup_lr
 from src.unet import UNet, count_parameters
 from src.utils import ensure_dir, get_device, get_logger, load_config, make_generator, resolve_path, set_seed
@@ -77,23 +79,62 @@ def drop_rows_after(log: CsvLog, step: int) -> None:
         writer.writerows(rows)
 
 
-def plot_curves(train_log: CsvLog, val_log: CsvLog, path: Path) -> None:
-    """Потеря на обучении (среднее за интервал журнала) и на валидации, логарифмическая шкала."""
+def plot_curves(train_log: CsvLog, val_log: CsvLog, path: Path, zoom_from: int = 2000,
+                smooth_steps: int = 2000) -> None:
+    """Кривые обучения на двух панелях.
+
+    (а) Весь диапазон в логарифмическом масштабе: за первую тысячу шагов потеря падает
+        с ~1 до ~0.035, и на одной оси с этим падением дальнейшее улучшение не видно.
+    (б) С шага ``zoom_from`` в обычном масштабе: медленное снижение потери на валидации
+        и разница между текущими и EMA-весами. Потеря на обучении здесь сглажена
+        скользящим средним за ``smooth_steps`` шагов, иначе её колебания закрывают тренд.
+    """
     train, val = train_log.read(), val_log.read()
     if not train:
         return
-    fig, ax = plt.subplots(figsize=(7.5, 4))
-    ax.plot([r["step"] for r in train], [r["loss"] for r in train], color=COLORS["blue"], linewidth=1,
-            alpha=0.55, label="обучение (среднее за интервал)")
+    steps = np.array([r["step"] for r in train])
+    loss = np.array([r["loss"] for r in train])
+    interval = int(steps[1] - steps[0]) if len(steps) > 1 else int(steps[0])
+    val_steps = np.array([r["step"] for r in val])
+    val_loss = np.array([r["val_loss"] for r in val])
+    val_ema = np.array([r["val_loss_ema"] for r in val])
+    show_zoom = val_steps.size > 1 and val_steps.max() > zoom_from
+
+    fig, axes = plt.subplots(1, 2 if show_zoom else 1, figsize=(11.5 if show_zoom else 6.5, 4.2), squeeze=False)
+    ax_full = axes[0][0]
+    ax_full.plot(steps, loss, color=COLORS["blue"], linewidth=1, label=f"обучение (среднее за {interval} шагов)")
     if val:
-        ax.plot([r["step"] for r in val], [r["val_loss"] for r in val], "o-", color=COLORS["orange"],
-                markersize=4, label="валидация, текущие веса")
-        ax.plot([r["step"] for r in val], [r["val_loss_ema"] for r in val], "s-", color=COLORS["aqua"],
-                markersize=4, label="валидация, EMA-веса")
-    ax.set_yscale("log")
-    ax.set(title="Функция потерь: MSE между настоящим и предсказанным шумом", xlabel="Шаг обучения",
-           ylabel="MSE, логарифмическая шкала", xlim=(0, None))
-    ax.legend(loc="upper right")
+        ax_full.plot(val_steps, val_loss, color=COLORS["orange"], linewidth=1.6, label="валидация, текущие веса")
+        ax_full.plot(val_steps, val_ema, color=COLORS["aqua"], linewidth=1.6, label="валидация, EMA-веса")
+    ax_full.set_yscale("log")
+    ax_full.set(title="(а) Весь диапазон", xlabel="Шаг обучения", ylabel="MSE, логарифмическая шкала",
+                xlim=(0, None))
+    ax_full.legend(loc="upper right")
+
+    if show_zoom:
+        ax = axes[0][1]
+        # Сглаживаем только точки после zoom_from: иначе в первое окно попадёт начальное падение потери.
+        window = max(1, smooth_steps // interval)
+        tail = steps > zoom_from
+        if tail.sum() >= window:
+            smooth = np.convolve(loss[tail], np.ones(window) / window, mode="valid")
+            ax.plot(steps[tail][window - 1:], smooth, color=COLORS["blue"], linewidth=1.2,
+                    label=f"обучение (скользящее среднее за {window * interval} шагов)")
+        keep = val_steps >= zoom_from
+        ax.plot(val_steps[keep], val_loss[keep], "o-", color=COLORS["orange"], markersize=3, linewidth=1.4,
+                label="валидация, текущие веса")
+        ax.plot(val_steps[keep], val_ema[keep], "s-", color=COLORS["aqua"], markersize=3, linewidth=1.4,
+                label="валидация, EMA-веса")
+        # Подписи итоговых значений справа от последних точек.
+        for y, color, va in [(val_loss[-1], COLORS["orange"], "bottom"), (val_ema[-1], COLORS["aqua"], "top")]:
+            ax.annotate(f"{y:.4f}", (val_steps[-1], y), xytext=(6, 0), textcoords="offset points",
+                        va=va, fontsize=9, color=INK_SECONDARY)
+        zoom_text = f"{zoom_from:,}".replace(",", " ")  # 2000 -> «2 000»
+        ax.set(title=f"(б) С шага {zoom_text}, обычная шкала", xlabel="Шаг обучения",
+               ylabel="MSE", xlim=(zoom_from, val_steps.max() * 1.06))
+        ax.legend(loc="upper right")
+
+    fig.suptitle("Функция потерь: MSE между настоящим и предсказанным шумом", fontweight="bold")
     save_figure(fig, path)
 
 
@@ -149,6 +190,8 @@ def parse_args() -> argparse.Namespace:
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--resume", action="store_true", help="продолжить с checkpoints/last.pt")
     mode.add_argument("--fresh", action="store_true", help="начать заново, удалив чекпойнты и журналы прошлого запуска")
+    mode.add_argument("--plot-only", action="store_true",
+                      help="только перерисовать график потерь по сохранённым журналам, без обучения")
     return parser.parse_args()
 
 
@@ -181,6 +224,13 @@ def main() -> None:
     figures_dir = ensure_dir(paths["figures_dir"])
     samples_dir = ensure_dir(figures_dir / "train_samples")
     last_path = ckpt_dir / "last.pt"
+    if args.plot_only:
+        apply_style()
+        train_log = CsvLog(results_dir / "train_log.csv", TRAIN_LOG_FIELDS, append=True)
+        val_log = CsvLog(results_dir / "train_val.csv", VAL_LOG_FIELDS, append=True)
+        plot_curves(train_log, val_log, figures_dir / "train_loss.png")
+        print(f"График сохранён: {figures_dir / 'train_loss.png'}")
+        return
     logger = get_logger("train", log_file=resolve_path(paths["logs_dir"]) / "train_diffusion.log")
 
     if last_path.exists() and not (args.resume or args.fresh):
