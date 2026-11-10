@@ -32,4 +32,35 @@ experiment1:
   ks_repeats: 20                                    # число повторов с разными seed
   variance_every: 10                                # шаг записи дисперсии вдоль траектории
 
-# Разделы model / training (роль 2) и classifier / analysis (роль 3) добавляются сюда же.
+# U-Net, предсказывающий шум. Размер подобран под видеокарту с 4 ГБ памяти: ~6.5 млн параметров.
+model:
+  image_size: 32
+  in_channels: 3
+  base_channels: 64          # C — каналы на первом уровне
+  channel_mults: [1, 2, 2]   # уровни 32×32, 16×16, 8×8 с каналами C, 2C, 2C
+  num_res_blocks: 2          # остаточных блоков на уровень спуска (на подъёме — на один больше)
+  attn_resolutions: [16]     # самовнимание только на 16×16
+  num_heads: 4
+  dropout: 0.1
+
+# Обучение. Время — для RTX 3050 Laptop 4 ГБ, батч 64 (data.batch_size): ~0.2 с на шаг.
+training:
+  total_steps: 100000      # ~6 часов, ~140 эпох
+  lr: 2.0e-4               # Adam, как в DDPM
+  warmup_steps: 1000       # линейный разогрев скорости обучения
+  grad_clip: 1.0           # ограничение нормы градиента
+  ema_decay: 0.9999
+  amp: true                # смешанная точность: bfloat16, если поддерживается, иначе float16
+  num_workers: 0           # батч готовится в основном процессе (~5 мс), пока видеокарта считает шаг
+  log_every: 100           # строка в results/train_log.csv
+  val_every: 2000          # потеря на валидации — results/train_val.csv и график
+  val_images: 2000         # фиксированные картинки из val с фиксированными t и шумом
+  sample_every: 10000      # сетка сгенерированных картинок
+  sample_count: 64
+  checkpoint_every: 2000   # checkpoints/last.pt — для продолжения после остановки
+  ema_save_every: 10000    # отдельные EMA-веса checkpoints/ema_step*.pt
+
+# Генерация (обратный процесс)
+sampling:
+  variance: beta           # дисперсия шума на шаге: beta — β_t (как в DDPM для CIFAR-10), posterior — β̃_t
+  clip_x0: true            # обрезать оценку x̂_0 до [−1, 1]

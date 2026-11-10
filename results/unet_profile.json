@@ -1,0 +1,48 @@
+{
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU",
+  "gpu_memory_gb": 4.0,
+  "torch": "2.5.1+cu121",
+  "python": "3.10.1",
+  "amp_dtype": "bfloat16",
+  "parameters": 6472195,
+  "training": [
+    {
+      "batch_size": 32,
+      "oom": false,
+      "sec_per_step": 0.1102,
+      "images_per_sec": 290.4,
+      "steps_per_epoch": 1406,
+      "min_per_epoch": 2.58,
+      "peak_memory_gb": 0.983,
+      "loss_is_finite": true
+    },
+    {
+      "batch_size": 64,
+      "oom": false,
+      "sec_per_step": 0.2052,
+      "images_per_sec": 311.8,
+      "steps_per_epoch": 703,
+      "min_per_epoch": 2.4,
+      "peak_memory_gb": 1.788,
+      "loss_is_finite": true
+    },
+    {
+      "batch_size": 128,
+      "oom": false,
+      "sec_per_step": 0.5,
+      "images_per_sec": 256.0,
+      "steps_per_epoch": 351,
+      "min_per_epoch": 2.92,
+      "peak_memory_gb": 3.398,
+      "loss_is_finite": true
+    }
+  ],
+  "sampling": {
+    "batch_size": 256,
+    "oom": false,
+    "sec_per_step": 0.296,
+    "min_per_batch_full_chain": 4.93,
+    "min_per_5000_images": 96.4,
+    "peak_memory_gb": 1.216
+  }
+}
