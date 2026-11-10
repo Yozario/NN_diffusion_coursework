@@ -26,17 +26,11 @@ import torch
 import torch.nn.functional as F
 
 from src.diffusion import GaussianDiffusion
+from src.training import amp_dtype_for
 from src.unet import UNet, count_parameters
 from src.utils import ensure_dir, get_device, get_logger, load_config, make_generator, resolve_path, save_json, set_seed
 
 TRAIN_SIZE = 45_000
-
-
-def amp_dtype_for(device: torch.device) -> torch.dtype | None:
-    """Тип смешанной точности: bfloat16, если поддерживается, иначе float16; на CPU — без неё."""
-    if device.type != "cuda":
-        return None
-    return torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
 
 
 def profile_training(cfg, diffusion, batch_size, steps, warmup, device, amp_dtype) -> dict:
