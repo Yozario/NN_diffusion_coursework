@@ -109,8 +109,10 @@ def show_image_grid(
     n_rows, n_cols = images.shape[:2]
     # Место под подписи задаётся в дюймах, чтобы между заголовком и картинками не было пустоты.
     label_w = 1.0 if row_labels is not None else 0.0
-    col_h = 0.45 if col_labels is not None else 0.0
-    title_h = 0.4 if title else 0.0
+    # Высота под подписи столбцов зависит от числа строк в самой длинной подписи.
+    label_lines = max(str(label).count("\n") + 1 for label in col_labels) if col_labels is not None else 0
+    col_h = 0.1 + 0.15 * label_lines if col_labels is not None else 0.0
+    title_h = 0.28 if title else 0.0
     width = n_cols * cell_size + label_w
     height = n_rows * cell_size + col_h + title_h
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(width, height), squeeze=False)
