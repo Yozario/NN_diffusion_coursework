@@ -3,7 +3,8 @@
 import pytest
 import torch
 
-from src.training import EMA, EpochBatchSampler, load_checkpoint, load_ema_model, save_checkpoint, warmup_lr
+from src.training import (EMA, EpochBatchSampler, amp_dtype_for, load_checkpoint, load_ema_model, save_checkpoint,
+                          warmup_lr)
 
 
 # --------------------------------------------------------------------------- #
@@ -108,3 +109,8 @@ def test_checkpoint_roundtrip(tmp_path):
     ema_only = tmp_path / "ema.pt"
     save_checkpoint({"step": 7, "model": ema.model.state_dict()}, ema_only)
     assert torch.equal(load_ema_model(torch.nn.Linear(3, 2), ema_only).weight, ema.model.weight)
+
+
+def test_amp_dtype_for_cpu_and_disabled():
+    assert amp_dtype_for(torch.device("cpu")) is None
+    assert amp_dtype_for(torch.device("cuda"), enabled=False) is None
