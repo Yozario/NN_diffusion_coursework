@@ -64,3 +64,30 @@ training:
 sampling:
   variance: beta           # дисперсия шума на шаге: beta — β_t (как в DDPM для CIFAR-10), posterior — β̃_t
   clip_x0: true            # обрезать оценку x̂_0 до [−1, 1]
+
+# Эксперимент 2: восстановление картинок после зашумления до шага t
+experiment2:
+  checkpoint: checkpoints/ema_final.pt
+  n_images: 512            # тестовые картинки для PSNR и SSIM
+  batch_size: 256
+  timesteps: [50, 100, 200, 300, 500, 700, 1000]
+  error_images: 2000       # тестовые картинки для ошибки предсказания шума
+  error_timesteps: [1, 5, 10, 25, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
+  grid_images: 6           # строк в сетке примеров (разные классы)
+  grid_timesteps: [100, 300, 500, 1000]
+  stochastic_images: 4     # картинок, для которых показаны несколько восстановлений одной и той же x_t
+  stochastic_samples: 5
+  stochastic_t: 500
+
+# Эксперимент 3: генерация из чистого шума и оценка качества (FID)
+experiment3:
+  checkpoint: checkpoints/ema_final.pt
+  n_samples: 5000          # сгенерированных картинок для FID
+  batch_size: 256
+  inception_batch_size: 100
+  reference_size: 50000    # обучающие картинки CIFAR-10 для FID и поиска соседей (все 50 000)
+  grid_size: 10            # сетка 10×10 сгенерированных картинок
+  nn_examples: 8           # сгенерированных картинок, ближе всех к обучающим, для рисунка
+  nn_neighbors: 5
+  trajectory_samples: 4
+  trajectory_steps: [1000, 900, 800, 700, 600, 500, 400, 300, 200, 100, 50, 0]

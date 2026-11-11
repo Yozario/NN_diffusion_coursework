@@ -1,0 +1,26 @@
+{
+  "checkpoint": "ema_final.pt",
+  "sampling": {
+    "variance": "beta",
+    "clip_x0": true
+  },
+  "n_samples": 5000,
+  "reference": "CIFAR-10 train, 50000 картинок",
+  "fid": 17.907,
+  "fid_real_test_same_n": 5.865,
+  "nearest_train_distance": {
+    "generated": {
+      "median": 0.1664,
+      "p5": 0.1067,
+      "min": 0.0569,
+      "mean": 0.1669
+    },
+    "real_test": {
+      "median": 0.1669,
+      "p5": 0.099,
+      "min": 0.051,
+      "mean": 0.1665
+    }
+  },
+  "generation_minutes_this_run": 3.2
+}
