@@ -122,10 +122,17 @@ def warmup_lr(step: int, base_lr: float, warmup_steps: int) -> float:
 
 
 def amp_dtype_for(device: torch.device, enabled: bool = True) -> torch.dtype | None:
-    """Тип смешанной точности: bfloat16, если видеокарта его поддерживает, иначе float16; на CPU — None."""
+    """Тип смешанной точности для видеокарты: bfloat16 или float16; на CPU — None.
+
+    bfloat16 быстро работает только на видеокартах архитектуры Ampere (RTX 30xx, A100) и новее.
+    На более старых, например T4 и P100 в Kaggle и Colab, ``torch.cuda.is_bf16_supported()``
+    тоже отвечает «да», но через медленную эмуляцию, поэтому решение принимается по версии
+    архитектуры: 8 и выше — bfloat16, иначе float16.
+    """
     if not enabled or device.type != "cuda":
         return None
-    return torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+    major, _ = torch.cuda.get_device_capability(device)
+    return torch.bfloat16 if major >= 8 else torch.float16
 
 
 # --------------------------------------------------------------------------- #
