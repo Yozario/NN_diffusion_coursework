@@ -78,3 +78,16 @@ experiment2:
   stochastic_images: 4     # картинок, для которых показаны несколько восстановлений одной и той же x_t
   stochastic_samples: 5
   stochastic_t: 500
+
+# Эксперимент 3: генерация из чистого шума и оценка качества (FID)
+experiment3:
+  checkpoint: checkpoints/ema_final.pt
+  n_samples: 5000          # сгенерированных картинок для FID
+  batch_size: 256
+  inception_batch_size: 100
+  reference_size: 50000    # обучающие картинки CIFAR-10 для FID и поиска соседей (все 50 000)
+  grid_size: 10            # сетка 10×10 сгенерированных картинок
+  nn_examples: 8           # сгенерированных картинок, ближе всех к обучающим, для рисунка
+  nn_neighbors: 5
+  trajectory_samples: 4
+  trajectory_steps: [1000, 900, 800, 700, 600, 500, 400, 300, 200, 100, 50, 0]
