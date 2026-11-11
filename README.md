@@ -27,6 +27,7 @@
 │   ├── profile_unet.py       # память и скорость обучения на видеокарте
 │   ├── train_diffusion.py    # обучение диффузионной модели
 │   ├── exp2_reconstruction.py   # эксперимент 2: восстановление после зашумления
+│   ├── exp2_baselines.py     # эксперимент 2: сравнение сети с простыми методами
 │   └── exp3_generation.py    # эксперимент 3: генерация из шума и FID
 ├── tests/                    # тесты (pytest)
 ├── results/
@@ -96,6 +97,7 @@ CIFAR-10 скачивается автоматически при первом �
 | `python -m scripts.profile_unet` | замер памяти и скорости обучения U-Net | ~1 мин на GPU | `results/unet_profile.json` |
 | `python -m scripts.train_diffusion` | обучение диффузионной модели | ~8 ч на RTX 3050 Laptop | `checkpoints/`, `results/train_*.csv`, `results/figures/train_*` |
 | `python -m scripts.exp2_reconstruction` | эксперимент 2: восстановление после зашумления (нужны веса) | 30–45 мин на RTX 3050 Laptop | `results/exp2_*.csv`, `results/exp2_summary.json`, `results/figures/exp2_*.png` |
+| `python -m scripts.exp2_baselines` | эксперимент 2: сеть против простых методов шумоподавления (нужны веса) | несколько минут | `results/exp2_baselines*`, `results/figures/exp2_baselines*.png` |
 | `python -m scripts.exp3_generation` | эксперимент 3: генерация 5000 картинок и FID (нужны веса) | 1.5–2.5 ч на RTX 3050 Laptop | `results/exp3_summary.json`, `results/figures/exp3_*.png` |
 
 Другой конфиг передаётся флагом: `python -m scripts.exp1_forward_process --config configs/my.yaml`.
@@ -179,9 +181,8 @@ x_{t-1} = \frac{\sqrt{\bar\alpha_{t-1}}\,\beta_t}{1-\bar\alpha_t}\,\hat x_0
 На последнем шаге шум не добавляется. Пример генерации с записью траектории:
 
 ```python
-import torch
 from src.diffusion import GaussianDiffusion
-from src.training import load_ema_model
+from src.training import amp_dtype_for, load_ema_model
 from src.unet import UNet
 from src.utils import get_device, load_config, make_generator
 
@@ -195,7 +196,7 @@ out = diffusion.p_sample_loop(
     shape=(16, 3, 32, 32),
     generator=make_generator(cfg["seed"], device),
     record_steps=range(0, 1001, 10),          # сохранить x_t и x̂_0 каждые 10 шагов
-    autocast_dtype=torch.bfloat16 if device.type == "cuda" else None,
+    autocast_dtype=amp_dtype_for(device),     # bfloat16 или float16 на видеокарте, None на CPU
 )
 out.images       # итоговые картинки [16, 3, 32, 32] в [−1, 1]
 out.x_t[500]     # x_t на шаге 500 (на CPU)
@@ -228,6 +229,10 @@ out.x0_pred[500] # оценка x̂_0, сделанная сетью на шаг
    те же метрики для самой $x_t$ показывают степень деградации.
 3. **Примеры** — сетка «оригинал → $x_t$ → восстановления» и пять восстановлений одной и той же $x_t$
    с разным шумом обратного процесса.
+4. **Сравнение с простыми методами** (`scripts/exp2_baselines.py`) — на тех же картинках и с тем же шумом
+   восстановление сетью за один шаг сравнивается с делением на $\sqrt{\bar\alpha_t}$ и с тем же плюс
+   размытием по Гауссу. Сила размытия подбирается для каждого $t$ на отдельных картинках из val.
+   Выигрыш сети считается по парам «картинка — шум» с 95%-м доверительным интервалом.
 
 ## Эксперимент 3
 
